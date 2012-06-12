@@ -5,57 +5,20 @@ package Dist::Zilla::Plugin::Git::NextVersion;
 # ABSTRACT: provide a version number by bumping the last git release tag
 
 use Dist::Zilla 4 ();
-use Git::Wrapper;
 use Version::Next ();
 use version 0.80 ();
 
 use Moose;
 use namespace::autoclean 0.09;
 use MooseX::AttributeShortcuts;
+use Dist::Zilla::Stash::Repository ();
 
-with 'Dist::Zilla::Role::VersionProvider';
-with 'Dist::Zilla::Role::Git::Repo';
+with
+    'Dist::Zilla::Role::Git::ConfigFromStash',
+    'Dist::Zilla::Role::VersionProvider',
+    ;
 
 # -- attributes
-
-has version_regexp  => ( is => 'ro', isa=>'Str', default => '^v(.+)$' );
-
-has first_version  => ( is => 'ro', isa=>'Str', default => '0.001' );
-
-has _previous_versions => (
-
-    traits  => ['Array'],
-    is      => 'lazy',
-    isa     => 'ArrayRef[Str]',
-    handles => {
-
-        has_previous_versions => 'count',
-        previous_versions     => 'elements',
-        earliest_version      => [ get =>  0 ],
-        last_version          => [ get => -1 ],
-    },
-);
-
-sub _build__previous_versions {
-  my ($self) = @_;
-
-  local $/ = "\n"; # Force record separator to be single newline
-
-  my $git  = Git::Wrapper->new( $self->repo_root );
-  my $regexp = $self->version_regexp;
-
-  my @tags = $git->tag;
-  @tags = map { /$regexp/ ? $1 : () } @tags;
-
-  # find tagged versions; sort least to greatest
-  my @versions =
-    sort { version->parse($a) <=> version->parse($b) }
-    grep { eval { version->parse($_) }  }
-    @tags;
-
-  return [ @versions ];
-}
-
 # -- role implementation
 
 sub provide_version {
