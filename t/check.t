@@ -8,7 +8,7 @@ use Test::DZil qw{ Builder simple_ini };
 use File::Temp qw{ tempdir };
 use File::pushd qw{ pushd };
 use Git::Wrapper;
-use Test::More 0.88 tests => 42; # done_testing
+use Test::More 0.88 tests => 44; # done_testing
 use Test::Exception;
 
 # Mock HOME to avoid ~/.gitexcludes from causing problems
@@ -258,6 +258,19 @@ throws_ok { $zilla->release } qr/uncommitted files/,
 our_messages_are(<<'', 'lists dist_ini as uncommitted');
 [Git::Check] branch master has some uncommitted files:
 [Git::Check] 	dist_ini
+
+#---------------------------------------------------------------------
+# Test adding untracked files in allow_dirty
+
+new_tzil(add_files_allowed_to_be_dirty_if_untracked => 1);
+
+# add untracked files allowed to be dirty
+throws_ok { $zilla->release } qr/untracked files/, 'untracked files';
+our_messages_are(<<'', 'lists untracked files added to the repo');
+[Git::Check] Adding untracked file: Changes
+[Git::Check] Adding untracked file: dist.ini
+[Git::Check] branch master has some untracked files:
+[Git::Check] 	foobar
 
 #---------------------------------------------------------------------
 sub append_to_file {

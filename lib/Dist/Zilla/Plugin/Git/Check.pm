@@ -5,6 +5,8 @@ use warnings;
 package Dist::Zilla::Plugin::Git::Check;
 # ABSTRACT: check your git repository before releasing
 
+use autobox::Core;
+
 use Moose;
 use namespace::autoclean 0.09;
 use Moose::Util::TypeConstraints qw(enum);
@@ -16,6 +18,12 @@ with 'Dist::Zilla::Role::Git::Repo';
 with 'Dist::Zilla::Role::Git::DirtyFiles';
 
 has untracked_files => ( is=>'ro', isa=>'DieWarnIgnore', default => 'die' );
+
+has add_files_allowed_to_be_dirty_if_untracked => (
+    is      => 'ro',
+    isa     => 'Bool',
+    default => 0,
+);
 
 # -- public methods
 
@@ -50,8 +58,18 @@ sub before_release {
         $self->log_fatal($errmsg);
     }
 
-    # no files should be untracked
+    # get and add untracked files if they're allowed to be dirty
     @output = $git->ls_files( { others=>1, 'exclude-standard'=>1 } );
+    if ($self->add_files_allowed_to_be_dirty_if_untracked) {
+
+        my %dirty_ok = map { $_ => 1 } $self->allow_dirty->flatten;
+        do { $self->log("Adding untracked file: $_"); $git->add($_) }
+            for grep { $dirty_ok{$_} } @output;
+
+        @output = grep { ! $dirty_ok{$_} } @output;
+    }
+
+    # no files should be untracked at this point
     if ( @output ) {
       push @issues, @output . " untracked file" . (@output == 1 ? '' : 's');
 
@@ -127,5 +145,10 @@ can use C<allow_dirty => to prohibit all local modifications.
 files.  Must be either C<die> (the default), C<warn>, or C<ignore>.
 C<warn> lists the untracked files, while C<ignore> only prints the
 total number of untracked files.
+
+=item * add_files_allowed_to_be_dirty_if_untracked - if an untracked file is
+found and matches a name in the list of files allowed to be dirty
+(C<allow_dirty>), then we tell git to add it and remove it from the list of
+untracked files.
 
 =back
