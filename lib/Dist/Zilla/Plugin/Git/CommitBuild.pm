@@ -61,7 +61,7 @@ has _source_branch => (
     lazy    => 1,
     init_arg=> undef,
     default => sub {
-        ($_[0]->git->name_rev( '--name-only', 'HEAD' ))[0];
+        ($_[0]->git->name_rev( '--name-only', '--refs=refs/heads/*', 'HEAD' ))[0];
     },
 );
 
